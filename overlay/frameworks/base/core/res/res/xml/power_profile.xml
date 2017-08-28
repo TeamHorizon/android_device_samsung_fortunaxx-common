@@ -24,18 +24,18 @@
         <value>800000</value>
         <value>533333</value>
         <value>400000</value>
-        <value>200000</value>  
+        <value>200000</value>
     </array>
     <item name="cpu.idle">2.3</item>
     <item name="wakeup.power">0.15</item>
     <array name="cpu.active">
-        <value>353</value>
-        <value>307</value>
-        <value>259</value>
-        <value>195</value>
-        <value>177</value>
-        <value>169</value>
-        <value>151</value>      
+        <value>165</value>
+        <value>141</value>
+        <value>129</value>
+        <value>94</value>
+        <value>70</value>
+        <value>58</value>
+        <value>40</value>
     </array>
     <item name="battery.capacity">2600</item>
     <array name="wifi.batchedscan">

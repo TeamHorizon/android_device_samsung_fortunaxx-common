@@ -58,7 +58,9 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadio.java b/hardware/q
 diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java
 --- a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java	Mon Jun 20 17:28:46 2016
 +++ b/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java	Mon Jun 27 10:45:01 2016
-@@ -99,6 +99,31 @@
+--- C:/Users/ZIM/Desktop/android_hardware_qcom_fm-cm-14.1/android_hardware_qcom_fm-cm-14.1/fmapp2/src/com/caf/fmradio/FMRadioService.java	Wed May 31 20:10:26 2017
++++ C:/Users/ZIM/Desktop/FMRadioService (1).java	Tue Aug 22 20:24:48 2017
+@@ -99,6 +99,33 @@
  import android.bluetooth.BluetoothProfile;
  import android.bluetooth.BluetoothAdapter;
  import android.bluetooth.BluetoothDevice;
@@ -80,17 +82,19 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/har
 +    @Override
 +    public void onChange(boolean selfChange) {
 +        super.onChange(selfChange);
++
 +        AudioManager mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
++
 +        int currvol = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-+        float vol = (float) currvol / 100;
++        float vol = (float) currvol / 75;
 +        mAudioManager.setParameters("FMRadioVol=" + vol);
-+        Log.d("FMService", "vol: " + String.format("%.10f", vol));
++        Log.d("FM_PATCH:FMService", "vol: " + String.format("%.10f", vol));
 +    }
 +}
  
  /**
   * Provides "background" FM Radio (that uses the hardware) capabilities,
-@@ -228,6 +253,7 @@
+@@ -228,6 +255,7 @@
     private Notification.Builder mRadioNotification;
     private Notification mNotificationInstance;
     private NotificationManager mNotificationManager;
@@ -98,7 +102,7 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/har
  
     public FMRadioService() {
     }
-@@ -276,6 +302,8 @@
+@@ -276,8 +304,11 @@
        String valueStr = audioManager.getParameters("isA2dpDeviceSupported");
        mA2dpDeviceSupportInHal = valueStr.contains("=true");
        Log.d(LOGTAG, " is A2DP device Supported In HAL"+mA2dpDeviceSupportInHal);
@@ -106,8 +110,11 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/har
 +      getApplicationContext().getContentResolver().registerContentObserver(android.provider.Settings.System.CONTENT_URI, true, mSettingsContentObserver );
  
        getA2dpStatusAtStart();
++	  setVolumeControlStream(AudioManager.STREAM_MUSIC);
     }
-@@ -346,6 +374,7 @@
+ 
+    @Override
+@@ -346,6 +377,7 @@
  
        TelephonyManager tmgr = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
        tmgr.listen(mPhoneStateListener, 0);
@@ -115,14 +122,15 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/har
  
        Log.d(LOGTAG, "onDestroy: unbindFromService completed");
  
-@@ -1039,8 +1068,16 @@
+@@ -1039,13 +1071,23 @@
          }
     };
  
 +   float GetMusicStreamVol() {
++       Log.d(LOGTAG,"FM_PATCH:GetMusicStreamVol()");
 +       AudioManager mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 +       int currvol = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-+       float vol = (float) currvol / 100;
++       float vol = (float) currvol / 75;
 +       return vol;
 +   }
 +
@@ -132,65 +140,66 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/har
         if(true == mAppShutdown) { // not to send intent to AudioManager in Shutdown
             return;
         }
-@@ -1081,9 +1118,44 @@
+        if (isCallActive()) { // when Call is active never let audio playback
+            mResumeAfterCall = true;
++           Log.d(LOGTAG,"FM_PATCH:startFM() mResumeAfterCall");
+            return;
+        }
+        mResumeAfterCall = false;
+@@ -1081,9 +1123,42 @@
             mSpeakerPhoneOn = false;
         // In FM stop, the audio route is set to default audio device
         } else if (mSpeakerPhoneOn) {
-+               Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn");
++               Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn true");
                 String temp = mA2dpConnected ? "A2DP HS" : "Speaker";
                 Log.d(LOGTAG, "Route audio to " + temp);
                 AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_SPEAKER);
-+               if (mA2dpConnected) {
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected");
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected MODE_IN_CALL");
-+                    mAudioManager.setMode(AudioManager.MODE_IN_CALL);
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected MODE_IN_CALL OK");
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected setSpeakerphoneOn(true)");
-+                    mAudioManager.setSpeakerphoneOn(true);
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected setSpeakerphoneOn(true) OK");
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected fm_radio_volume=on");
-+                    mAudioManager.setParameters("fm_radio_volume=on");
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected fm_radio_volume=on OK");
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected FMRadioVol");
-+                    mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected FMRadioVol OK");
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected MODE_NORMAL");
-+                    mAudioManager.setMode(AudioManager.MODE_NORMAL);
-+                    Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn mA2dpConnected MODE_NORMAL OK");
-+               }
++               Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn true OK");
++			   Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn true MODE_IN_CALL");
++               mAudioManager.setMode(AudioManager.MODE_IN_CALL);
++		       Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn true MODE_IN_CALL OK");
++		       Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn true setSpeakerphoneOn(true)");
++               mAudioManager.setSpeakerphoneOn(true);
++		       Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn true setSpeakerphoneOn(true) OK");
++		       Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn true FMRadioVol");
++               mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
++		       Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn true FMRadioVol OK");
++		       Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn true MODE_NORMAL");
++               mAudioManager.setMode(AudioManager.MODE_NORMAL);
++               Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn true MODE_NORMAL OK");
 +       } else {
-+            Log.d(LOGTAG,"FM_PATCH:startFM() MODE_IN_CALL");
-+            mAudioManager.setMode(AudioManager.MODE_IN_CALL);
-+            Log.d(LOGTAG,"FM_PATCH:startFM() MODE_IN_CALL OK");
-+            Log.d(LOGTAG,"FM_PATCH:startFM() setSpeakerphoneOn(false)");
-+            mAudioManager.setSpeakerphoneOn(false);
-+            Log.d(LOGTAG,"FM_PATCH:startFM() setSpeakerphoneOn(false) OK");
-+            Log.d(LOGTAG,"FM_PATCH:startFM() fm_radio_volume=on");
-+            mAudioManager.setParameters("fm_radio_volume=on");
-+            Log.d(LOGTAG,"FM_PATCH:startFM() fm_radio_volume=on OK");
-+            Log.d(LOGTAG,"FM_PATCH:startFM() FMRadioVol");
-+            mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
-+            Log.d(LOGTAG,"FM_PATCH:startFM() FMRadioVol OK");
-+            Log.d(LOGTAG,"FM_PATCH:startFM() MODE_NORMAL");
-+            mAudioManager.setMode(AudioManager.MODE_NORMAL);
-+            Log.d(LOGTAG,"FM_PATCH:startFM() MODE_NORMAL OK");
++              Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn false");
++              AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_NONE);
++              Log.d(LOGTAG,"FM_PATCH:startFM() mSpeakerPhoneOn false OK");
++			  Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn false MODE_IN_CALL");
++              mAudioManager.setMode(AudioManager.MODE_IN_CALL);
++		      Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn false MODE_IN_CALL OK");
++			  Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn false setSpeakerphoneOn(false)");
++              mAudioManager.setSpeakerphoneOn(false);
++		      Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn false setSpeakerphoneOn(false) OK");
++              Log.d(LOGTAG,"FM_PATCH:startFM() fm_radio_volume ON");
++              mAudioManager.setParameters("fm_radio_volume=on");
++              Log.d(LOGTAG,"FM_PATCH:startFM() fm_radio_volume ON OK");
++              Log.d(LOGTAG,"FM_PATCH:startFM() FMRadioVol");
++              mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
++              Log.d(LOGTAG,"FM_PATCH:startFM() FMRadioVol OK");
++			  Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn false MODE_NORMAL");
++              mAudioManager.setMode(AudioManager.MODE_NORMAL);
++              Log.d(LOGTAG, "FM_PATCH:startFM() mSpeakerPhoneOn false MODE_NORMAL OK");
         }
  
         mPlaybackInProgress = true;
-@@ -1100,6 +1172,13 @@
+@@ -1098,6 +1173,10 @@
+ 
+    private void stopFM() {
         Log.d(LOGTAG, "In stopFM");
++       Log.d(LOGTAG,"FM_PATCH:stopFM()");
++       Log.d(LOGTAG,"FM_PATCH:stopFM() fm_radio_volume OFF");
++       mAudioManager.setParameters("fm_radio_volume=off");
++       Log.d(LOGTAG,"FM_PATCH:stopFM() fm_radio_volume OFF OK");
         configureAudioDataPath(false);
         mPlaybackInProgress = false;
-+       Log.d(LOGTAG,"FM_PATCH:stopFM()");
-+       Log.d(LOGTAG,"FM_PATCH:stopFM() fm_radio_mute=1");
-+       mAudioManager.setParameters("fm_radio_mute=1");
-+       Log.d(LOGTAG,"FM_PATCH:stopFM() fm_radio_mute=1 OK");
-+       Log.d(LOGTAG,"FM_PATCH:stopFM() fm_radio_volume=off");
-+       mAudioManager.setParameters("fm_radio_volume=off");
-+       Log.d(LOGTAG,"FM_PATCH:stopFM() fm_radio_volume=off OK");
         try {
-            if ((mServiceInUse) && (mCallbacks != null))
-                mCallbacks.onFmAudioPathStopped();
 @@ -1298,6 +1377,12 @@
         if (mRecorder == null)
             return;
@@ -204,19 +213,29 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/har
               mRecorder.stop();
               mRecorder.reset();
               mRecorder.release();
-@@ -1564,6 +1649,11 @@
+@@ -1563,7 +1648,21 @@
+    private Runnable mSpeakerDisableTask = new Runnable() {
        public void run() {
           Log.v(LOGTAG, "Disabling Speaker");
++		 Log.v(LOGTAG, "FM_PATCH:run() Disabling Speaker FORCE_NONE");
           AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_NONE);
-+         Log.v(LOGTAG, "FM_PATCH:run() Disabling Speaker");
++		 Log.v(LOGTAG, "FM_PATCH:run() Disabling Speaker FORCE_NONE OK");
++		 Log.d(LOGTAG, "FM_PATCH:run() MODE_IN_CALL");
 +         mAudioManager.setMode(AudioManager.MODE_IN_CALL);
++		 Log.d(LOGTAG, "FM_PATCH:run() MODE_IN_CALL OK");
++		 Log.d(LOGTAG, "FM_PATCH:run() setSpeakerphoneOn(false)");
 +         mAudioManager.setSpeakerphoneOn(false);
++		 Log.d(LOGTAG, "FM_PATCH:run() setSpeakerphoneOn(false) OK");
++		 Log.d(LOGTAG, "FM_PATCH:run() FMRadioVol");
++         mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
++		 Log.d(LOGTAG, "FM_PATCH:run() FMRadioVol OK");
++		 Log.d(LOGTAG, "FM_PATCH:run() MODE_NORMAL");
 +         mAudioManager.setMode(AudioManager.MODE_NORMAL);
-+         Log.v(LOGTAG, "FM_PATCH:run() Disabling Speaker OK");
++         Log.d(LOGTAG, "FM_PATCH:run() MODE_NORMAL OK");
        }
     };
  
-@@ -2254,13 +2344,16 @@
+@@ -2254,13 +2353,30 @@
     }
  
     private void resetAudioRoute() {
@@ -224,52 +243,54 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/har
         if (isSpeakerEnabled() == true) {
             if (mA2dpConnected == true) {
                 Log.d(LOGTAG, "A2DP connected, de-select BT");
--               AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_NO_BT_A2DP);
 +               Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() FORCE_NO_BT_A2DP");
-+               AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_NO_BT_A2DP);    
+                AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_NO_BT_A2DP);
++               Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() FORCE_NO_BT_A2DP OK");		   
             } else {
                 Log.d(LOGTAG, "A2DP is not connected, force none");
++			   Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() FORCE_NONE");
                 AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_NONE);
-+               Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() FORCE_NONE");
++               Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() FORCE_NONE OK");
++			   Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() MODE_IN_CALL");
++               mAudioManager.setMode(AudioManager.MODE_IN_CALL);
++		       Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() MODE_IN_CALL OK");
++		       Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() setSpeakerphoneOn(false)");
++               mAudioManager.setSpeakerphoneOn(false);
++		       Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() setSpeakerphoneOn(false) OK");
++		       Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() FMRadioVol");
++               mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
++		       Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() FMRadioVol OK");
++		       Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() MODE_NORMAL");
++               mAudioManager.setMode(AudioManager.MODE_NORMAL);
++               Log.d(LOGTAG, "FM_PATCH:resetAudioRoute() MODE_NORMAL OK");
             }
         }
     }
-@@ -2308,6 +2401,7 @@
-    * Reset (OFF) FM Operations: This resets all the current FM operations             .
-    */
-    private void fmOperationsReset() {
-+      Log.d(LOGTAG, "FM_PATCH:fmOperationsReset()");
-       if (isFmRecordingOn())
-       {
-           stopRecording();
-@@ -2330,6 +2424,26 @@
+@@ -2328,8 +2444,23 @@
+       }
+ 
        if ( mSpeakerPhoneOn) {
++		  Log.d(LOGTAG, "FM_PATCH:fmOperationsReset() mSpeakerPhoneOn true BUT NEED false");
            mSpeakerPhoneOn = false;
++		  Log.d(LOGTAG, "FM_PATCH:fmOperationsReset() FORCE_NONE");
            AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_NONE);
++          Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() FORCE_NONE OK");
++		  Log.d(LOGTAG, "FM_PATCH:fmOperationsReset() MODE_IN_CALL");
++          mAudioManager.setMode(AudioManager.MODE_IN_CALL);
++		  Log.d(LOGTAG, "FM_PATCH:fmOperationsReset() MODE_IN_CALL OK");
++		  Log.d(LOGTAG, "FM_PATCH:fmOperationsReset() setSpeakerphoneOn(false)");
 +          mAudioManager.setSpeakerphoneOn(false);
-+          mAudioManager.setParameters("fm_radio_volume=on");
++		  Log.d(LOGTAG, "FM_PATCH:fmOperationsReset() setSpeakerphoneOn(false) OK");
++		  Log.d(LOGTAG, "FM_PATCH:fmOperationsReset() FMRadioVol");
 +          mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
-+          
-+          
-+        Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() MODE_IN_CALL");
-+        mAudioManager.setMode(AudioManager.MODE_IN_CALL);
-+        Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() MODE_IN_CALL OK");
-+        Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() setSpeakerphoneOn(false)");
-+        mAudioManager.setSpeakerphoneOn(false);
-+        Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() setSpeakerphoneOn(false) OK");
-+        Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() fm_radio_volume=on");
-+        mAudioManager.setParameters("fm_radio_volume=on");
-+        Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() fm_radio_volume=on OK");
-+        Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() FMRadioVol");
-+        mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
-+        Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() FMRadioVol OK");
-+        Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() MODE_NORMAL");
-+        mAudioManager.setMode(AudioManager.MODE_NORMAL);
-+        Log.d(LOGTAG,"FM_PATCH:fmOperationsReset() MODE_NORMAL OK");
++		  Log.d(LOGTAG, "FM_PATCH:fmOperationsReset() FMRadioVol OK");
++		  Log.d(LOGTAG, "FM_PATCH:fmOperationsReset() MODE_NORMAL");
++          mAudioManager.setMode(AudioManager.MODE_NORMAL);
++          Log.d(LOGTAG, "FM_PATCH:fmOperationsReset() MODE_NORMAL OK");
        }
     }
  
-@@ -2443,6 +2557,7 @@
+@@ -2443,6 +2574,7 @@
     }
  
     public void enableSpeaker(boolean speakerOn) {
@@ -277,76 +298,56 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/har
         Log.d(LOGTAG, "speakerOn: " + speakerOn);
  
         if (isCallActive())
-@@ -2451,16 +2566,42 @@
+@@ -2451,16 +2583,48 @@
         mSpeakerPhoneOn = speakerOn;
  
         if (speakerOn == false) {
-+           Log.d(LOGTAG, "FM_PATCH:enableSpeaker()speakerOn == false");
++           Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false)");
              if (mA2dpConnected == true) {
                  Log.d(LOGTAG, "A2DP connected, de-select BT");
++				Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) de-select BT");
                  AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_NO_BT_A2DP);
-+                Log.d(LOGTAG, "FM_PATCH:enableSpeaker() de-select BT");
-+                mAudioManager.setMode(AudioManager.MODE_IN_CALL);
-+                mAudioManager.setSpeakerphoneOn(false);
-+                Log.d(LOGTAG,"FM_PATCH:enableSpeaker() fm_radio_volume=on");
-+                mAudioManager.setParameters("fm_radio_volume=on");
-+                Log.d(LOGTAG,"FM_PATCH:enableSpeaker() fm_radio_volume=on OK");
-+                Log.d(LOGTAG,"FM_PATCH:enableSpeaker() FMRadioVol");
-+                mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
-+                Log.d(LOGTAG,"FM_PATCH:enableSpeaker() FMRadioVol OK");
-+                mAudioManager.setMode(AudioManager.MODE_NORMAL);
-+                Log.d(LOGTAG, "FM_PATCH:enableSpeaker() de-select BT OK");
++                Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) de-select BT OK");
              } else {
                  Log.d(LOGTAG, "A2DP is not connected, force none");
++				Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) A2DP is not connected, force none FORCE_NONE");
                  AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_NONE);
-+                Log.d(LOGTAG, "FM_PATCH:enableSpeaker() force none");
++                Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) A2DP is not connected, force none FORCE_NONE OK");
++				Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) MODE_IN_CALL");
 +                mAudioManager.setMode(AudioManager.MODE_IN_CALL);
++		        Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) MODE_IN_CALL OK");
++		        Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) setSpeakerphoneOn(false)");
 +                mAudioManager.setSpeakerphoneOn(false);
-+                mAudioManager.setParameters("fm_radio_volume=on");
++		        Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) setSpeakerphoneOn(false) OK");
++		        Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) FMRadioVol");
 +                mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
++		        Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) FMRadioVol OK");
++		        Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) MODE_NORMAL");
 +                mAudioManager.setMode(AudioManager.MODE_NORMAL);
-+                Log.d(LOGTAG, "FM_PATCH:enableSpeaker() force none OK");
++                Log.d(LOGTAG, "FM_PATCH:enableSpeaker(false) MODE_NORMAL OK");
              }
         } else if (speakerOn == true) {
             Log.d(LOGTAG, "enabling speaker");
-+           Log.d(LOGTAG, "FM_PATCH:enableSpeaker() true");
++           Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true)");
++		   Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true) FORCE_SPEAKER");
             AudioSystem.setForceUse(AudioSystem.FOR_MEDIA, AudioSystem.FORCE_SPEAKER);
++		   Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true) FORCE_SPEAKER OK");
++		   Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true) MODE_IN_CALL");
 +           mAudioManager.setMode(AudioManager.MODE_IN_CALL);
++		   Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true) MODE_IN_CALL OK");
++		   Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true) setSpeakerphoneOn(true)");
 +           mAudioManager.setSpeakerphoneOn(true);
-+           mAudioManager.setParameters("fm_radio_volume=on");
++		   Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true) setSpeakerphoneOn(true) OK");
++		   Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true) FMRadioVol");
 +           mAudioManager.setParameters("FMRadioVol=" + GetMusicStreamVol());
++		   Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true) FMRadioVol OK");
++		   Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true) MODE_NORMAL");
 +           mAudioManager.setMode(AudioManager.MODE_NORMAL);
-+           Log.d(LOGTAG, "FM_PATCH:enableSpeaker() true OK");
++           Log.d(LOGTAG, "FM_PATCH:enableSpeaker(true) MODE_NORMAL OK");
         }
  
         Log.d(LOGTAG, "speakerOn completed:" + speakerOn);
-@@ -2514,6 +2655,7 @@
-    *  @return true if routeAudio call succeeded, false if the route call failed.
-    */
-    public boolean routeAudio(int audioDevice) {
-+      Log.d(LOGTAG, "FM_PATCH:routeAudio()");
-       boolean bStatus=false;
-       AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
- 
-@@ -2522,14 +2664,17 @@
-       switch (audioDevice) {
- 
-         case RADIO_AUDIO_DEVICE_WIRED_HEADSET:
-+            Log.d(LOGTAG, "FM_PATCH:routeAudio(headset)");
-             mAudioDevice = "headset";
-             break;
- 
-         case RADIO_AUDIO_DEVICE_SPEAKER:
-+            Log.d(LOGTAG, "FM_PATCH:routeAudio(speaker)");
-             mAudioDevice = "speaker";
-             break;
- 
-         default:
-+            Log.d(LOGTAG, "FM_PATCH:routeAudio(default headset)");
-             mAudioDevice = "headset";
-             break;
-       }
-@@ -2550,6 +2695,7 @@
+@@ -2550,6 +2714,7 @@
     * @return true if set mute mode api was invoked successfully, false if the api failed.
     */
     public boolean mute() {
@@ -354,18 +355,18 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/har
        boolean bCommandSent=true;
        if(isMuted())
            return bCommandSent;
-@@ -2560,7 +2706,9 @@
+@@ -2560,6 +2725,10 @@
        if (audioManager != null)
        {
           mMuted = true;
--         audioManager.setParameters("fm_mute=1");
-+         Log.d(LOGTAG, "FM_PATCH:mute(): SET fm_radio_mute=1");
++         Log.d(LOGTAG, "FM_PATCH:mute(): SET fm_radio_mute 1");
 +         audioManager.setParameters("fm_radio_mute=1");
-+         Log.d(LOGTAG, "FM_PATCH:mute(): SET fm_radio_mute=1 OK");
++         Log.d(LOGTAG, "FM_PATCH:mute(): SET fm_radio_mute 1 OK");
++         Log.d(LOGTAG, "FM_PATCH:mute(): SET fm_mute 1");
+          audioManager.setParameters("fm_mute=1");
           if (mAudioTrack != null)
               mAudioTrack.setVolume(0.0f);
-       }
-@@ -2572,6 +2720,7 @@
+@@ -2572,6 +2741,7 @@
     * @return true if set mute mode api was invoked successfully, false if the api failed.
     */
     public boolean unMute() {
@@ -373,14 +374,14 @@ diff -ur a/hardware/qcom/fm/fmapp2/src/com/caf/fmradio/FMRadioService.java b/har
        boolean bCommandSent=true;
        if(!isMuted())
            return bCommandSent;
-@@ -2582,7 +2731,9 @@
+@@ -2582,6 +2752,10 @@
        if (audioManager != null)
        {
           mMuted = false;
--         audioManager.setParameters("fm_mute=0");
-+         Log.d(LOGTAG, "FM_PATCH:unMute(): SET fm_radio_mute=0");
++         Log.d(LOGTAG, "FM_PATCH:unMute(): SET fm_radio_mute 0");
 +         audioManager.setParameters("fm_radio_mute=0");
-+         Log.d(LOGTAG, "FM_PATCH:unMute(): SET fm_radio_mute=0 OK");
++         Log.d(LOGTAG, "FM_PATCH:unMute(): SET fm_radio_mute 0 OK");
++         Log.d(LOGTAG, "FM_PATCH:unMute(): SET fm_mute 0");
+          audioManager.setParameters("fm_mute=0");
           if (mAudioTrack != null)
               mAudioTrack.setVolume(1.0f);
-          if (mResumeAfterCall)

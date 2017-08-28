@@ -2,8 +2,8 @@
 rild.libpath=/system/lib/libsec-ril.so
 rild.libargs=-d /dev/smd0
 ro.telephony.ril_class=SamsungQcom3GDSRIL
-#ro.ril.multi_rat_capable=false
-#persist.radio.flexmap_type=nw_mode
+ro.ril.multi_rat_capable=false
+persist.radio.flexmap_type=nw_mode
 persist.radio.rat_on=combine
 ril.subscription.types=NV,RUIM
 ro.telephony.default_network=9
@@ -13,6 +13,7 @@ persist.radio.no_wait_for_card=1
 persist.radio.apm_sim_not_pwdn=1
 persist.radio.use_se_table_only=1
 persist.radio.jbims=1
+DEVICE_PROVISIONED=1
 ro.ril.telephony.mqanelements=6
 ro.telephony.ril.config=simactivation
 
@@ -72,7 +73,7 @@ persist.timed.enable=true
 
 persist.hwc.enable_vds=1
 
-ro.config.max_starting_bg=8
+#ro.config.max_starting_bg=8
 #dalvik.vm.dex2oat-swap=false
 dalvik.vm.dex2oat-flags=--no-watch-dog
 ro.sys.fw.dex2oat_thread_count=4
